@@ -3,9 +3,15 @@ title: Context engineering in agents
 sidebarTitle: Context engineering
 ---
 
-import AlphaCallout from '/snippets/alpha-lc-callout.mdx';
+import AlphaCalloutPy from '/snippets/alpha-lc-callout-py.mdx';
+import AlphaCalloutJS from '/snippets/alpha-lc-callout-js.mdx';
 
-<AlphaCallout />
+:::python
+<AlphaCalloutPy />
+:::
+:::js
+<AlphaCalloutJS />
+:::
 
 The hard part of building agents (or any LLM application) is making them reliable enough.
 While they may work for a prototype, they often mess up in more real world and widespread use cases.
@@ -175,7 +181,7 @@ result = agent.invoke(
 
 :::js
 ```typescript
-import { z } from "zod";
+import * as z from "zod";
 import { createAgent, dynamicSystemPromptMiddleware } from "langchain";
 
 const contextSchema = z.object({
@@ -300,12 +306,8 @@ Tools can access runtime context, session state, and long-term memory to make co
 :::python
 ```python
 from dataclasses import dataclass
-from langchain.tools import tool
+from langchain.tools import tool, ToolRuntime
 from langchain.agents import create_agent
-from langgraph.runtime import get_runtime
-from langgraph.config import get_store
-from typing_extensions import Annotated
-from langchain.tools import InjectedState
 
 @dataclass
 class Context:
@@ -315,11 +317,10 @@ class Context:
 @tool
 def search_documents(
     query: str,
-    state: Annotated[dict, InjectedState]
+    runtime: ToolRuntime[Context]
 ) -> str:
     """Search through documents."""
     # Access runtime context for user-specific configuration
-    runtime = get_runtime(Context)
     user_id = runtime.context.user_id
 
     # Access long-term memory for user preferences
@@ -327,7 +328,7 @@ def search_documents(
     search_prefs = store.get(("preferences", user_id), "search")
 
     # Access session state
-    conversation_history = state["messages"]
+    conversation_history = runtime.state["messages"]
 
     # Use all context to perform a better search
     results = perform_search(query, user_id, search_prefs, conversation_history)

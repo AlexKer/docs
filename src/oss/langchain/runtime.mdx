@@ -2,9 +2,15 @@
 title: Runtime
 ---
 
-import AlphaCallout from '/snippets/alpha-lc-callout.mdx';
+import AlphaCalloutPy from '/snippets/alpha-lc-callout-py.mdx';
+import AlphaCalloutJS from '/snippets/alpha-lc-callout-js.mdx';
 
-<AlphaCallout />
+:::python
+<AlphaCalloutPy />
+:::
+:::js
+<AlphaCalloutJS />
+:::
 
 ## Overview
 
@@ -57,7 +63,7 @@ agent.invoke(
 :::
 :::js
 ```ts
-import { z } from "zod";
+import * as z from "zod";
 import { createAgent } from "langchain";
 
 const contextSchema = z.object({ // [!code highlight]
@@ -88,16 +94,19 @@ You can access the runtime information inside tools to:
 * Write to the [custom stream](/oss/langchain/streaming#custom-updates) (ex, tool progress / updates)
 
 :::python
-Use the @[get_runtime] function from `langgraph.runtime` to access the @[Runtime] object inside a tool.
+Use the `ToolRuntime` parameter to access the @[Runtime] object inside a tool.
 
 ```python
-from langchain.tools import tool
-from langgraph.runtime import get_runtime  # [!code highlight]
+from dataclasses import dataclass
+from langchain.tools import tool, ToolRuntime  # [!code highlight]
+
+@dataclass
+class Context:
+    user_id: str
 
 @tool
-def fetch_user_email_preferences() -> str:
+def fetch_user_email_preferences(runtime: ToolRuntime[Context]) -> str:  # [!code highlight]
     """Fetch the user's email preferences from the store."""
-    runtime = get_runtime(Context)  # [!code highlight]
     user_id = runtime.context.user_id  # [!code highlight]
 
     preferences: str = "The user prefers you to write a brief and polite email."
@@ -112,7 +121,7 @@ def fetch_user_email_preferences() -> str:
 Use the `runtime` parameter to access the @[Runtime] object inside a tool.
 
 ```ts
-import { z } from "zod";
+import * as z from "zod";
 import { tool } from "langchain";
 import { type Runtime } from "@langchain/langgraph"; // [!code highlight]
 
@@ -200,7 +209,7 @@ agent.invoke(
 Use the `runtime` parameter to access the @[Runtime] object inside middleware.
 
 ```ts
-import { z } from "zod";
+import * as z from "zod";
 import { createAgent, createMiddleware, type AgentState, SystemMessage } from "langchain";
 import { type Runtime } from "@langchain/langgraph"; // [!code highlight]
 
