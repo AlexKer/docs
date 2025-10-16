@@ -3,9 +3,15 @@ title: Middleware
 description: Control and customize agent execution at every step
 ---
 
-import AlphaCallout from '/snippets/alpha-lc-callout.mdx';
+import AlphaCalloutPy from '/snippets/alpha-lc-callout-py.mdx';
+import AlphaCalloutJS from '/snippets/alpha-lc-callout-js.mdx';
 
-<AlphaCallout />
+:::python
+<AlphaCalloutPy />
+:::
+:::js
+<AlphaCalloutJS />
+:::
 
 Middleware provides a way to more tightly control what happens inside the agent.
 
@@ -246,9 +252,9 @@ const agent = createAgent({
 </Accordion>
 
 <Note>
-**Important:** Human-in-the-loop middleware requires a [checkpointer](/oss/python/langgraph/checkpointing) to maintain state across interruptions.
+**Important:** Human-in-the-loop middleware requires a [checkpointer](/oss/langgraph/persistence#checkpoints) to maintain state across interruptions.
 
-See the [human-in-the-loop documentation](/oss/python/langchain/human-in-the-loop) for complete examples and integration patterns.
+See the [human-in-the-loop documentation](/oss/langchain/human-in-the-loop) for complete examples and integration patterns.
 </Note>
 
 ### Anthropic prompt caching
@@ -263,7 +269,7 @@ Reduce costs by caching repetitive prompt prefixes with Anthropic models.
 </Tip>
 
 <Info>
-Learn more about [Anthropic Prompt Caching](https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching#cache-limitations) strategies and limitations.
+Learn more about [Anthropic Prompt Caching](https://docs.claude.com/en/docs/build-with-claude/prompt-caching#cache-limitations) strategies and limitations.
 </Info>
 
 :::python
@@ -670,6 +676,7 @@ This middleware automatically provides agents with a `write_todos` tool and syst
 ```python
 from langchain.agents import create_agent
 from langchain.agents.middleware import PlanningMiddleware
+from langchain.messages import HumanMessage
 
 agent = create_agent(
     model="openai:gpt-4o",
@@ -684,13 +691,14 @@ print(result["todos"])  # Array of todo items with status tracking
 
 :::js
 ```typescript
-import { createAgent, HumanMessage } from "langchain";
-import { planningMiddleware } from "langchain/agents/middleware";
+import { createAgent, HumanMessage, todoListMiddleware } from "langchain";
 
 const agent = createAgent({
   model: "openai:gpt-4o",
-  tools: [...],
-  middleware: [planningMiddleware()],
+  tools: [
+    /* ... */
+  ],
+  middleware: [todoListMiddleware()] as const,
 });
 
 const result = await agent.invoke({
@@ -876,7 +884,9 @@ For simple middleware that only needs a single hook, decorators provide the quic
 
 ```python
 from langchain.agents.middleware import before_model, after_model, wrap_model_call
-from langchain.agents.middleware import AgentState, ModelRequest, ModelResponse
+from langchain.agents.middleware import AgentState, ModelRequest, ModelResponse, dynamic_prompt
+from langchain.messages import AIMessage
+from langchain.agents import create_agent
 from langgraph.runtime import Runtime
 from typing import Any, Callable
 
@@ -1269,7 +1279,7 @@ class CallCounterMiddleware(AgentMiddleware[CustomState]):
 :::js
 ```typescript
 import { createMiddleware, createAgent, HumanMessage } from "langchain";
-import { z } from "zod";
+import * as z from "zod";
 
 // Middleware with custom state requirements
 const callCounterMiddleware = createMiddleware({
@@ -1337,7 +1347,7 @@ Context properties are configuration values passed through the runnable config. 
 Middleware can define context requirements that must be satisfied through the agent's configuration:
 
 ```typescript
-import { z } from "zod";
+import * as z from "zod";
 import { createMiddleware, HumanMessage } from "langchain";
 
 const rateLimitMiddleware = createMiddleware({
@@ -1650,7 +1660,7 @@ agent.invoke(
 
 :::js
 ```typescript
-import { z } from "zod";
+import * as z from "zod";
 import { createAgent, createMiddleware, tool, HumanMessage } from "langchain";
 
 const githubCreateIssue = tool(

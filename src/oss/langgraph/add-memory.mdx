@@ -2,9 +2,15 @@
 title: Add and manage memory
 ---
 
-import AlphaCallout from '/snippets/alpha-lg-callout.mdx';
+import AlphaCalloutPy from '/snippets/alpha-lg-callout-py.mdx';
+import AlphaCalloutJS from '/snippets/alpha-lg-callout-js.mdx';
 
-<AlphaCallout />
+:::python
+<AlphaCalloutPy />
+:::
+:::js
+<AlphaCalloutJS />
+:::
 
 AI applications need [memory](/oss/concepts/memory) to share context across multiple interactions. In LangGraph, you can add two types of memory:
 
@@ -552,7 +558,7 @@ with PostgresStore.from_conn_string(DB_URI) as store:  # [!code highlight]
 
 :::js
 ```typescript
-import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres";
+import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
 
 const DB_URI = "postgresql://postgres:postgres@localhost:5442/postgres?sslmode=disable";
 const store = PostgresStore.fromConnString(DB_URI);
@@ -748,7 +754,8 @@ const graph = builder.compile({ store });
   ```typescript
   import { ChatAnthropic } from "@langchain/anthropic";
   import { StateGraph, MessagesZodMeta, START, LangGraphRunnableConfig } from "@langchain/langgraph";
-  import { PostgresSaver, PostgresStore } from "@langchain/langgraph-checkpoint-postgres";
+  import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
+  import { PostgresStore } from "@langchain/langgraph-checkpoint-postgres/store";
   import { BaseMessage } from "@langchain/core/messages";
   import { registry } from "@langchain/langgraph/zod";
   import * as z from "zod";
@@ -1250,7 +1257,7 @@ const builder = new StateGraph(MessagesZodState)
   from langchain.chat_models import init_chat_model
   from langgraph.graph import StateGraph, START, MessagesState
 
-  model = init_chat_model("anthropic:claude-3-7-sonnet-latest")
+  model = init_chat_model("anthropic:claude-sonnet-4-5-20250929")
   summarization_model = model.bind(max_tokens=128)
 
   def call_model(state: MessagesState):
@@ -1621,7 +1628,7 @@ const summarizeConversation = async (state: z.infer<typeof State>) => {
   from langgraph.checkpoint.memory import InMemorySaver
   from langmem.short_term import SummarizationNode, RunningSummary  # [!code highlight]
 
-  model = init_chat_model("anthropic:claude-3-7-sonnet-latest")
+  model = init_chat_model("anthropic:claude-sonnet-4-5-20250929")
   summarization_model = model.bind(max_tokens=128)
 
   class State(MessagesState):

@@ -2,14 +2,20 @@
 title: Agents
 ---
 
-import AlphaCallout from '/snippets/alpha-lc-callout.mdx';
+import AlphaCalloutPy from '/snippets/alpha-lc-callout-py.mdx';
+import AlphaCalloutJS from '/snippets/alpha-lc-callout-js.mdx';
 
-<AlphaCallout />
+:::python
+<AlphaCalloutPy />
+:::
+:::js
+<AlphaCalloutJS />
+:::
 
 Agents combine language models with tools to create systems that can reason about tasks, decide which tools to use, and iteratively work towards solutions.
 
 :::python
-`create_agent()` provides a production-ready agent implementation.
+@[`create_agent`] provides a production-ready agent implementation.
 :::
 :::js
 `createAgent()` provides a production-ready agent implementation.
@@ -50,13 +56,13 @@ graph TD
 <Info>
 
 :::python
-`create_agent()` builds a **graph**-based agent runtime using [LangGraph](/oss/langgraph/overview). A graph consists of nodes (steps) and edges (connections) that define how your agent processes information. The agent moves through this graph, executing nodes like the model node (which calls the model), the tools node (which executes tools), or middleware.
+@[`create_agent`] builds a **graph**-based agent runtime using [LangGraph](/oss/langgraph/overview). A graph consists of nodes (steps) and edges (connections) that define how your agent processes information. The agent moves through this graph, executing nodes like the model node (which calls the model), the tools node (which executes tools), or middleware.
 :::
 :::js
 `createAgent()` builds a **graph**-based agent runtime using [LangGraph](/oss/langgraph/overview). A graph consists of nodes (steps) and edges (connections) that define how your agent processes information. The agent moves through this graph, executing nodes like the model node (which calls the model), the tools node (which executes tools), or middleware.
 :::
 
-Learn more about the [graph API](/oss/langgraph/graph-api).
+Learn more about the [Graph API](/oss/langgraph/graph-api).
 
 </Info>
 
@@ -93,7 +99,7 @@ const agent = createAgent({
 
 :::python
 <Tip>
-    Model identifier strings support automatic inference (e.g., `"gpt-5"` will be inferred as `"openai:gpt-5"`).
+    Model identifier strings support automatic inference (e.g., `"gpt-5"` will be inferred as `"openai:gpt-5"`). Refer to the @[reference][init_chat_model(model_provider)] to see a full list of model identifier strings.
 </Tip>
 
 For more control over the model configuration, initialize a model instance directly using the provider package:
@@ -175,32 +181,42 @@ agent = create_agent(
 ```
 
 <Note>
-Pre-bound models (models with `.bind_tools()` already called) are not supported when using structured output. If you need dynamic model selection with structured output, ensure the models passed to the middleware are not pre-bound.
+Pre-bound models (models with @[`bind_tools`][BaseChatModel.bind_tools] already called) are not supported when using structured output. If you need dynamic model selection with structured output, ensure the models passed to the middleware are not pre-bound.
 </Note>
 
 :::
 :::js
 
-To use a dynamic model, you need to provide a function that receives the graph state and runtime and returns an instance of a chat model. The returned chat model needs to have the tools bound to it using `.bindTools(tools)`, where `tools` is a subset of the `tools` parameter.
+To use a dynamic model, create middleware with `wrapModelCall` that modifies the model in the request:
 
 ```ts wrap
-import { createAgent, AgentState } from "langchain";
 import { ChatOpenAI } from "@langchain/openai";
+import { createAgent, createMiddleware } from "langchain";
 
-const selectModel = (state: AgentState) => {
-  const messageCount = state.messages.length;
+const basicModel = new ChatOpenAI({ model: "gpt-4o-mini" });
+const advancedModel = new ChatOpenAI({ model: "gpt-4o" });
 
-  if (messageCount > 10) {
-    return new ChatOpenAI({ model: "gpt-4.1" }).bindTools(tools);
-  }
-  return new ChatOpenAI({ model: "gpt-4o" }).bindTools(tools);
-};
+const dynamicModelSelection = createMiddleware({
+  name: "DynamicModelSelection",
+  wrapModelCall: (request, handler) => {
+    // Choose model based on conversation complexity
+    const messageCount = request.messages.length;
+
+    return handler({
+        ...request,
+        model: messageCount > 10 ? advancedModel : basicModel,
+    });
+  },
+});
 
 const agent = createAgent({
-  llm: selectModel,
+  model: "gpt-4o-mini", // Base model (used when messageCount ≤ 10)
   tools,
+  middleware: [dynamicModelSelection] as const,
 });
 ```
+
+For more details on middleware and advanced patterns, see the [middleware documentation](/oss/langchain/middleware).
 :::
 
 <Tip>
@@ -241,7 +257,7 @@ agent = create_agent(model, tools=[search, get_weather])
 :::
 :::js
 ```ts wrap
-import { z } from "zod";
+import * as z from "zod";
 import { createAgent, tool } from "langchain";
 
 const search = tool(
@@ -305,7 +321,7 @@ agent = create_agent(
 )
 ```
 
-The agent will return a `ToolMessage` with the custom error message when a tool fails:
+The agent will return a @[`ToolMessage`] with the custom error message when a tool fails:
 
 ```python
 # result["messages"]
@@ -321,26 +337,37 @@ The agent will return a `ToolMessage` with the custom error message when a tool 
 
 :::
 :::js
-```ts wrap
-import { ToolNode, ToolMessage } from "langchain";
 
-const toolNode = new ToolNode(
-  [search, calculate],
-  {
-    handleToolErrors: (error, toolCall) => {
+To customize how tool errors are handled, use the `wrapToolCall` hook in a custom middleware:
+
+```ts wrap
+import { createAgent, createMiddleware, ToolMessage } from "langchain";
+
+const handleToolErrors = createMiddleware({
+  name: "HandleToolErrors",
+  wrapToolCall: (request, handler) => {
+    try {
+      return handler(request);
+    } catch (error) {
+      // Return a custom error message to the model
       return new ToolMessage({
-        content: "Please check your input and try again.",
-        tool_call_id: toolCall.id
+        content: `Tool error: Please check your input and try again. (${error})`,
+        tool_call_id: request.toolCall.id!,
       });
     }
-  }
-);
+  },
+});
 
 const agent = createAgent({
   model: "openai:gpt-4o",
-  tools: toolNode,
-})
+  tools: [
+    /* ... */
+  ],
+  middleware: [handleToolErrors] as const,
+});
 ```
+
+The agent will return a `ToolMessage` with the custom error message when a tool fails.
 :::
 
 <Tip>
@@ -349,7 +376,7 @@ Learn more about tools in [tools](/oss/langchain/tools).
 
 #### Tool use in the ReAct loop
 
-Agents follow the ReAct (*Reasoning* + *Acting*) pattern, alternating between brief reasoning steps with targeted tool calls and feeding the resulting observations into subsequent decisions until they can deliver a final answer.
+Agents follow the ReAct ("Reasoning + Acting") pattern, alternating between brief reasoning steps with targeted tool calls and feeding the resulting observations into subsequent decisions until they can deliver a final answer.
 
 <Accordion title="Example of ReAct loop">
 Prompt: Identify the current most popular wireless headphones and verify availability.
@@ -410,7 +437,7 @@ To learn more about tools, see [Tools](/oss/langchain/tools).
 
 ### System prompt
 
-You can shape how your agent approaches tasks by providing a prompt. The `system_prompt` parameter can be provided as a string:
+You can shape how your agent approaches tasks by providing a prompt. The @[`system_prompt`] parameter can be provided as a string:
 
 :::python
 ```python wrap
@@ -480,9 +507,8 @@ result = agent.invoke(
 
 :::js
 ```typescript wrap
-import { z } from "zod";
-import { createAgent } from "langchain";
-import { dynamicSystemPromptMiddleware } from "langchain/middleware";
+import * as z from "zod";
+import { createAgent, dynamicSystemPromptMiddleware } from "langchain";
 
 const contextSchema = z.object({
   userRole: z.enum(["expert", "beginner"]),
@@ -518,6 +544,29 @@ const result = await agent.invoke(
 <Tip>
 For more details on message types and formatting, see [Messages](/oss/langchain/messages). For comprehensive middleware documentation, see [Middleware](/oss/langchain/middleware).
 </Tip>
+
+## Invocation
+
+You can invoke an agent by passing an update to its [state](/oss/langgraph/graph-api#state). All agents include a [sequence of messages](/oss/langgraph/use-graph-api#messagesstate) in their state; to invoke the agent, pass a new message:
+
+:::python
+```python
+result = agent.invoke(
+    {"messages": [{"role": "user", "content": "What's the weather in San Francisco?"}]}
+)
+```
+:::
+:::js
+```typescript
+await agent.invoke({
+  messages: [{ role: "user", content: "What's the weather in San Francisco?" }],
+})
+```
+:::
+
+For streaming steps and / or tokens from the agent, refer to the [streaming](/oss/langchain/streaming) guide.
+
+Otherwise, the agent follows the LangGraph [Graph API](/oss/langgraph/use-graph-api) and supports all associated methods.
 
 ## Advanced concepts
 
@@ -577,7 +626,7 @@ In v1, simply passing a schema (e.g., `response_format=ContactInfo`) is no longe
 In some situations, you may want the agent to return an output in a specific format. LangChain provides a simple, universal way to do this with the `responseFormat` parameter.
 
 ```ts wrap
-import { z } from "zod";
+import * as z from "zod";
 import { createAgent } from "langchain";
 
 const ContactInfo = z.object({
@@ -620,26 +669,37 @@ Information stored in the state can be thought of as the [short-term memory](/os
 
 :::python
 
-Custom state schemas must extend `AgentState` as a `TypedDict`. Define them in middleware using the `state_schema` attribute:
+Custom state schemas must extend @[`AgentState`] as a `TypedDict`.
 
-```python wrap
-from typing import Annotated, TypedDict
-from langchain.agents import create_agent, AgentState
-from langchain.agents.middleware import AgentMiddleware
+There are two ways to define custom state:
+1. Via middleware (preferred)
+2. Via `state_schema` on @[`create_agent`]
 
-# Define custom state extending AgentState
-class CustomAgentState(AgentState):
-    """Extended state with user preferences."""
+<Note>
+Defining custom state via middleware is preferred over defining it via `state_schema` on @[`create_agent`] because it allows you to keep state extensions conceptually scoped to the relevant middleware and tools.
+
+`state_schema` is still supported for backwards compatibility on `create_agent`.
+</Note>
+
+#### Defining state via middleware
+
+Use middleware to define custom state when your custom state needs to be accessed by specific middleware hooks and tools attached to said middleware.
+
+```python
+class CustomState(AgentState):
     user_preferences: dict
 
-# Create middleware with custom state
-class PreferencesMiddleware(AgentMiddleware[CustomAgentState]):
-    state_schema = CustomAgentState  # Set the state schema
+class CustomMiddleware(AgentMiddleware):
+    state_schema = CustomState
+    tools = [tool1, tool2]
+
+    def before_model(self, state: CustomState, runtime) -> dict[str, Any] | None:
+        ...
 
 agent = create_agent(
     model,
     tools=tools,
-    middleware=[PreferencesMiddleware()]
+    middleware=[CustomMiddleware()]
 )
 
 # The agent can now track additional state beyond messages
@@ -649,14 +709,34 @@ result = agent.invoke({
 })
 ```
 
+#### Defining state via `state_schema`
+
+Use the @[`state_schema`] parameter as a shortcut to define custom state that is only used in tools.
+
+```python
+class CustomState(AgentState):
+    user_preferences: dict
+
+agent = create_agent(
+    model,
+    tools=[tool1, tool2],
+    state_schema=CustomState
+)
+# The agent can now track additional state beyond messages
+result = agent.invoke({
+    "messages": [{"role": "user", "content": "I prefer technical explanations"}],
+    "user_preferences": {"style": "technical", "verbosity": "detailed"},
+})
+```
+
 <Note>
-In v1, custom state schemas **must** be `TypedDict` types. Pydantic models and dataclasses are no longer supported. See the [v1 migration guide](/oss/python/migrate/langchain-v1#state-type-restrictions) for more details.
+In v1, custom state schemas **must** be `TypedDict` types. Pydantic models and dataclasses are no longer supported. See the [v1 migration guide](/oss/migrate/langchain-v1#state-type-restrictions) for more details.
 </Note>
 
 :::
 :::js
 ```ts wrap
-import { z } from "zod";
+import * as z from "zod";
 import { MessagesZodState } from "@langchain/langgraph";
 import { createAgent, type BaseMessage } from "langchain";
 
@@ -679,7 +759,7 @@ To learn more about memory, see [Memory](/oss/concepts/memory). For information 
 
 ### Streaming
 
-We've seen how the agent can be called with `.invoke` to get a final response. If the agent executes multiple steps, this may take a while. To show intermediate progress, we can stream back messages as they occur.
+We've seen how the agent can be called with `invoke` to get a final response. If the agent executes multiple steps, this may take a while. To show intermediate progress, we can stream back messages as they occur.
 
 :::python
 ```python wrap

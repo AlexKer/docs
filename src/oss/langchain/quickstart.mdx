@@ -2,9 +2,15 @@
 title: Quickstart
 ---
 
-import AlphaCallout from '/snippets/alpha-lc-callout.mdx';
+import AlphaCalloutPy from '/snippets/alpha-lc-callout-py.mdx';
+import AlphaCalloutJS from '/snippets/alpha-lc-callout-js.mdx';
 
-<AlphaCallout />
+:::python
+<AlphaCalloutPy />
+:::
+:::js
+<AlphaCalloutJS />
+:::
 
 This quickstart takes you from a simple setup to a fully functional AI agent in just a few minutes.
 
@@ -36,6 +42,7 @@ agent.invoke(
 :::js
 ```ts
 import { createAgent, tool } from "langchain";
+import * as z from "zod";
 
 const getWeather = tool(
   (input) => `It's always sunny in ${input.city}!`,
@@ -117,8 +124,9 @@ Let's walk through each step:
 
         ```python
         from dataclasses import dataclass
-        from langgraph.runtime import get_runtime
+        from langchain.tools import tool, ToolRuntime
 
+        @tool
         def get_weather_for_location(city: str) -> str:
             """Get weather for a given city."""
             return f"It's always sunny in {city}!"
@@ -128,16 +136,16 @@ Let's walk through each step:
             """Custom runtime context schema."""
             user_id: str
 
-        def get_user_location() -> str:
+        @tool
+        def get_user_location(runtime: ToolRuntime[Context]) -> str:
             """Retrieve user information based on user ID."""
-            runtime = get_runtime(Context)
             user_id = runtime.context.user_id
             return "Florida" if user_id == "1" else "SF"
         ```
 
         <Tip>
             Tools should be well-documented: their name, description, and argument names become part of the model's prompt.
-            We've defined them here as plain Python functions, but LangChain's @[@tool decorator][@tool] decorator is often used to add extra metadata.
+            LangChain's @[`@tool` decorator][@tool] adds metadata and enables runtime injection via the `ToolRuntime` parameter.
         </Tip>
         :::
 
@@ -147,7 +155,7 @@ Let's walk through each step:
         ```ts
         import { type Runtime } from "@langchain/langgraph";
         import { tool } from "langchain";
-        import { z } from "zod";
+        import * as z from "zod";
 
         const getWeather = tool(
           (input) => `It's always sunny in ${input.city}!`,
@@ -381,8 +389,8 @@ from dataclasses import dataclass
 
 from langchain.agents import create_agent
 from langchain.chat_models import init_chat_model
+from langchain.tools import tool, ToolRuntime
 from langgraph.checkpoint.memory import InMemorySaver
-from langgraph.runtime import get_runtime
 
 # Define system prompt
 system_prompt = """You are an expert weather forecaster, who speaks in puns.
@@ -401,13 +409,14 @@ class Context:
     user_id: str
 
 # Define tools
+@tool
 def get_weather_for_location(city: str) -> str:
     """Get weather for a given city."""
     return f"It's always sunny in {city}!"
 
-def get_user_location() -> str:
+@tool
+def get_user_location(runtime: ToolRuntime[Context]) -> str:
     """Retrieve user information based on user ID."""
-    runtime = get_runtime(Context)
     user_id = runtime.context.user_id
     return "Florida" if user_id == "1" else "SF"
 
@@ -474,10 +483,9 @@ print(response['structured_response'])
 
 :::js
 ```ts
-import { createAgent, tool } from "langchain";
-import { initChatModel } from "langchain/chat_models";
+import { createAgent, tool, initChatModel } from "langchain";
 import { MemorySaver, type Runtime } from "@langchain/langgraph";
-import { z } from "zod";
+import * as z from "zod";
 
 // Define system prompt
 const systemPrompt = `You are an expert weather forecaster, who speaks in puns.
